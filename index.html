@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SC Website</title>
+    <style>
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+    <img id="img1" src="./1.png" alt="Image 1" onclick="showImage2()">
+    <img id="img2" src="./2.png" alt="Image 2" style="display: none;" onclick="openNewTab()">
+
+    <script>
+        function showImage2() {
+            document.getElementById('img1').style.display = 'none';
+            document.getElementById('img2').style.display = 'block';
+        }
+
+        function openNewTab() {
+            window.open('http://localhost:8501', '_blank');
+        }
+    </script>
+</body>
+
+</html>
