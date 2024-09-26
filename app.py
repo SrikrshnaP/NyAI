@@ -12,14 +12,12 @@ def text_to_speech_gtts(text, lang='en'):
     tts = gTTS(text=text, lang=lang, slow=False)
     audio_fp = BytesIO()
     tts.write_to_fp(audio_fp)
-    audio_fp.seek(0)  # Move cursor to the beginning of BytesIO
+    audio_fp.seek(0) 
     return audio_fp
 
 # Def for Chat
-# Configure the API key
-genai.configure(api_key="AIzaSyBqm_dXuNWqT_DmZtuLKUtRREG2xwX7Jjg")  # Replace with your actual API key
+genai.configure(api_key="AIzaSyBqm_dXuNWqT_DmZtuLKUtRREG2xwX7Jjg") 
 
-# Define the generation configuration
 generation_config = {
     "temperature": 1,
     "top_p": 0.95,
@@ -27,7 +25,6 @@ generation_config = {
     "max_output_tokens": 8192
 }
 
-# Safety settings to allow risky output
 safe = [
     {"category": "HARM_CATEGORY_DANGEROUS", "threshold": "BLOCK_NONE"},
     {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
@@ -36,7 +33,6 @@ safe = [
     {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
 ]
 
-# Create the GenerativeModel instance with adjusted safety settings
 model = genai.GenerativeModel(
     model_name="gemini-1.5-flash",
     generation_config=generation_config,
@@ -51,7 +47,6 @@ def get_answer_from_model(chat_session, question):
     response = chat_session.send_message(question)
     return response.text
 
-# Function to translate the answer to the desired language
 def translate_answer(answer, target_language):
     translation_session = model.start_chat(
         history=[
@@ -79,8 +74,6 @@ def initialize_chat_with_document_text(extracted_text):
     )
     return chat_session
 
-
-# Function to extract text from a PDF file
 def extract_text_from_pdf(file):
     reader = PyPDF2.PdfReader(file)
     text = ""
@@ -88,7 +81,6 @@ def extract_text_from_pdf(file):
         text += page.extract_text()
     return text
 
-# Function to extract text from a Word document
 def extract_text_from_word(file):
     doc = Document(file)
     text = ""
@@ -96,10 +88,8 @@ def extract_text_from_word(file):
         text += para.text + "\n"
     return text
 
-# Set page config with customized colors
 st.set_page_config(page_title="NyAI", page_icon="⚖️", layout="wide")
 
-# Custom CSS for styling
 custom_css = """
 <style>
 /* Sidebar styling */
@@ -152,16 +142,13 @@ body {
 """
 st.markdown(custom_css, unsafe_allow_html=True)
 
-# Sidebar navigation with styled buttons
 st.sidebar.title("NyAI ✨")
 options = ["Search", "Compare", "Find", "Ask"]
 selected_option = st.sidebar.radio("", options, format_func=lambda x: f"  {x}")
 
-# Adding the "Exit" button to the sidebar
 if st.sidebar.button("Exit"):
-    st.stop()  # Stops the script if the user clicks "Exit"
+    st.stop() 
 
-# Initialize session state variables if they don't exist
 if 'type_of_litigation' not in st.session_state:
     st.session_state['type_of_litigation'] = ''
 if 'court' not in st.session_state:
@@ -175,11 +162,9 @@ if 'respondents' not in st.session_state:
 if 'digitize_option' not in st.session_state:
     st.session_state['digitize_option'] = False
 
-# Main interface for "Search"
 if selected_option == "Search":
     st.title("HI JYOTI, HOW CAN I ASSIST YOU?")
     
-    # Search bar with an emoji icon and search on Enter press
     search_query = st.text_input("Search 🔍", placeholder="Enter your search here...")
     if search_query:
         query = f"in:site indiankanoon.org {search_query}"
@@ -187,22 +172,17 @@ if selected_option == "Search":
 
     st.markdown("**OR**")
     
-    # Create two columns for form fields
     col1, col2 = st.columns(2)
     
     with col1:
-        # Dropdown for Type of Litigation
         st.session_state['type_of_litigation'] = st.selectbox("Type of Litigation", ["Select", "Civil", "Criminal"])
         
-        # Dropdown for Court
         st.session_state['court'] = st.selectbox("Court", ["Select", "Supreme Court", "High Court", "District Court", "Trial Court"])
         
-        # Textbox for Jurisdiction, disabled if Supreme Court is selected
         jurisdiction_disabled = st.session_state['court'] == "Supreme Court"
         st.session_state['jurisdiction'] = st.text_input("Intended Jurisdiction", disabled=jurisdiction_disabled)
         
     with col2:
-        # Conditional dropdown for Nature of the Case
         if st.session_state['type_of_litigation'] == "Civil":
             st.session_state['nature_of_case'] = st.selectbox("Nature of the Case", ["Select", "Insurance", "Divorce", "Family Dispute", "Inheritance", "Wages", "Land"])
         elif st.session_state['type_of_litigation'] == "Criminal":
@@ -210,13 +190,11 @@ if selected_option == "Search":
         else:
             st.session_state['nature_of_case'] = st.selectbox("Nature of the Case", ["Select"])
 
-        # Show the "DIGITIZE" option if "Land" is selected
         if st.session_state['nature_of_case'] == "Land":
             st.session_state['digitize_option'] = True
         else:
             st.session_state['digitize_option'] = False
         
-        # Conditional dropdown for Respondents based on Nature of the Case
         if st.session_state['nature_of_case'] == "Insurance":
             st.session_state['respondents'] = st.selectbox("Respondents", ["Select", "Max Insurance", "Bajaj Insurance", "New India Insurance", "Other"])
         elif st.session_state['nature_of_case'] == "Defamation":
@@ -224,7 +202,6 @@ if selected_option == "Search":
         else:
             st.session_state['respondents'] = st.selectbox("Respondents", ["Select"])
         
-    # Submit button positioned centrally and styled
     col1, col2, col3 = st.columns([2, 1, 2])
     with col2:
         if st.button("Submit"):
@@ -238,11 +215,9 @@ if selected_option == "Search":
 if 'show_digitize' not in st.session_state:
     st.session_state['show_digitize'] = True
 
-# Sidebar checkbox to show or hide the "DIGITIZE" section
 show_digitize = st.sidebar.checkbox("NyAI Translate", value=st.session_state['show_digitize'])
 st.session_state['show_digitize'] = show_digitize
 
-# Show the "DIGITIZE" option if "Land" is selected and checkbox is checked
 if st.session_state['digitize_option'] and st.session_state['show_digitize']:
     st.sidebar.header("DIGITIZE")
     
@@ -280,21 +255,17 @@ if st.session_state['digitize_option'] and st.session_state['show_digitize']:
             """)
 
 
-# Main "Compare" Section
 if selected_option == "Compare":
     st.title("Compare")
 
-    # Sliders for Time and Expenditure
     time_value = st.slider("Time (in years)", 0.0, 7.0, 2.61)
     expenditure_value = st.slider("Expenditure (₹ in Lakhs)", 0.0, 10.0, 6.755)
 
-    # Columns for "Similar Cases resolved by ADR" and "Related Judgements"
     col1, col2 = st.columns(2)
 
     with col1:
         st.header("Similar Cases Resolved by ADR")
         
-        # First button for a similar case
         if st.button("Mumbai Mediation Centre - Rajesh Kumar - Daily Times - News Media - Settled"):
             st.write("""
             **Case ID**: D7A9P3  
@@ -322,7 +293,6 @@ if selected_option == "Compare":
 
     with col2:
         st.header("Related Judgements")
-        # Boxed text for "Related Judgements"
 
         st.write("Click on Find to Chat with the below case(s)")
 
@@ -409,9 +379,7 @@ if selected_option == "Find":
                         if st.button("Read Response Aloud"):
                             audio_fp = text_to_speech_gtts(answer)
                             st.audio(audio_fp, format='audio/mp3')
-#### Main "Ask" Section
 
-# Initialize chat session
 def initialize_chat():
     chat_session = model.start_chat(history=[])
     return chat_session 
