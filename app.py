@@ -1,5 +1,6 @@
 import streamlit as st
 import webbrowser
+from openai import OpenAI
 import PyPDF2
 from io import BytesIO
 import google.generativeai as genai
@@ -12,12 +13,14 @@ def text_to_speech_gtts(text, lang='en'):
     tts = gTTS(text=text, lang=lang, slow=False)
     audio_fp = BytesIO()
     tts.write_to_fp(audio_fp)
-    audio_fp.seek(0) 
+    audio_fp.seek(0)  # Move cursor to the beginning of BytesIO
     return audio_fp
 
 # Def for Chat
-genai.configure(api_key="AIzaSyBqm_dXuNWqT_DmZtuLKUtRREG2xwX7Jjg") 
+# Configure the API key
+genai.configure(api_key="AIzaSyBqm_dXuNWqT_DmZtuLKUtRREG2xwX7Jjg")  # Replace with your actual API key
 
+# Define the generation configuration
 generation_config = {
     "temperature": 1,
     "top_p": 0.95,
@@ -25,6 +28,7 @@ generation_config = {
     "max_output_tokens": 8192
 }
 
+# Safety settings to allow risky output
 safe = [
     {"category": "HARM_CATEGORY_DANGEROUS", "threshold": "BLOCK_NONE"},
     {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
@@ -33,6 +37,7 @@ safe = [
     {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
 ]
 
+# Create the GenerativeModel instance with adjusted safety settings
 model = genai.GenerativeModel(
     model_name="gemini-1.5-flash",
     generation_config=generation_config,
@@ -47,6 +52,7 @@ def get_answer_from_model(chat_session, question):
     response = chat_session.send_message(question)
     return response.text
 
+# Function to translate the answer to the desired language
 def translate_answer(answer, target_language):
     translation_session = model.start_chat(
         history=[
@@ -74,6 +80,8 @@ def initialize_chat_with_document_text(extracted_text):
     )
     return chat_session
 
+
+# Function to extract text from a PDF file
 def extract_text_from_pdf(file):
     reader = PyPDF2.PdfReader(file)
     text = ""
@@ -81,6 +89,7 @@ def extract_text_from_pdf(file):
         text += page.extract_text()
     return text
 
+# Function to extract text from a Word document
 def extract_text_from_word(file):
     doc = Document(file)
     text = ""
@@ -88,8 +97,10 @@ def extract_text_from_word(file):
         text += para.text + "\n"
     return text
 
+# Set page config with customized colors
 st.set_page_config(page_title="NyAI", page_icon="⚖️", layout="wide")
 
+# Custom CSS for styling
 custom_css = """
 <style>
 /* Sidebar styling */
@@ -108,6 +119,11 @@ custom_css = """
 }
 .sidebar .sidebar-content .element-container:hover {
     background-color: #564a3d;
+}
+
+/* Make the sidebar title larger */
+.sidebar h1, .sidebar h2, .sidebar h3, .sidebar h4 {
+    font-size: 600px;  /* Adjust size as needed */
 }
 
 /* Screen background and font colors */
@@ -135,6 +151,11 @@ body {
     border-radius: 5px;
     font-size: 16px;
 }
+
+/* Exit button styling to make text white */
+.stButton > button {
+    color: white !important;  /* Ensure Exit button text is white */
+}
 .stButton > button:hover {
     background-color: #564a3d;
 }
@@ -142,13 +163,16 @@ body {
 """
 st.markdown(custom_css, unsafe_allow_html=True)
 
+# Sidebar navigation with styled buttons
 st.sidebar.title("NyAI ✨")
 options = ["Search", "Compare", "Find", "Ask"]
 selected_option = st.sidebar.radio("", options, format_func=lambda x: f"  {x}")
 
+# Adding the "Exit" button to the sidebar
 if st.sidebar.button("Exit"):
-    st.stop() 
+    st.stop()  # Stops the script if the user clicks "Exit"
 
+# Initialize session state variables if they don't exist
 if 'type_of_litigation' not in st.session_state:
     st.session_state['type_of_litigation'] = ''
 if 'court' not in st.session_state:
@@ -162,9 +186,11 @@ if 'respondents' not in st.session_state:
 if 'digitize_option' not in st.session_state:
     st.session_state['digitize_option'] = False
 
+# Main interface for "Search"
 if selected_option == "Search":
     st.title("HI JYOTI, HOW CAN I ASSIST YOU?")
     
+    # Search bar with an emoji icon and search on Enter press
     search_query = st.text_input("Search 🔍", placeholder="Enter your search here...")
     if search_query:
         query = f"in:site indiankanoon.org {search_query}"
@@ -172,29 +198,36 @@ if selected_option == "Search":
 
     st.markdown("**OR**")
     
+    # Create two columns for form fields
     col1, col2 = st.columns(2)
     
     with col1:
+        # Dropdown for Type of Litigation
         st.session_state['type_of_litigation'] = st.selectbox("Type of Litigation", ["Select", "Civil", "Criminal"])
         
+        # Dropdown for Court
         st.session_state['court'] = st.selectbox("Court", ["Select", "Supreme Court", "High Court", "District Court", "Trial Court"])
         
+        # Textbox for Jurisdiction, disabled if Supreme Court is selected
         jurisdiction_disabled = st.session_state['court'] == "Supreme Court"
         st.session_state['jurisdiction'] = st.text_input("Intended Jurisdiction", disabled=jurisdiction_disabled)
         
     with col2:
+        # Conditional dropdown for Nature of the Case
         if st.session_state['type_of_litigation'] == "Civil":
-            st.session_state['nature_of_case'] = st.selectbox("Nature of the Case", ["Select", "Insurance", "Divorce", "Family Dispute", "Inheritance", "Wages", "Land"])
+            st.session_state['nature_of_case'] = st.selectbox("Nature of the Case", ["Select", "Insurance", "Divorce", "Land"])
         elif st.session_state['type_of_litigation'] == "Criminal":
             st.session_state['nature_of_case'] = st.selectbox("Nature of the Case", ["Select", "Defamation"])
         else:
             st.session_state['nature_of_case'] = st.selectbox("Nature of the Case", ["Select"])
 
+        # Show the "DIGITIZE" option if "Land" is selected
         if st.session_state['nature_of_case'] == "Land":
             st.session_state['digitize_option'] = True
         else:
             st.session_state['digitize_option'] = False
         
+        # Conditional dropdown for Respondents based on Nature of the Case
         if st.session_state['nature_of_case'] == "Insurance":
             st.session_state['respondents'] = st.selectbox("Respondents", ["Select", "Max Insurance", "Bajaj Insurance", "New India Insurance", "Other"])
         elif st.session_state['nature_of_case'] == "Defamation":
@@ -202,6 +235,7 @@ if selected_option == "Search":
         else:
             st.session_state['respondents'] = st.selectbox("Respondents", ["Select"])
         
+    # Submit button positioned centrally and styled
     col1, col2, col3 = st.columns([2, 1, 2])
     with col2:
         if st.button("Submit"):
@@ -215,9 +249,11 @@ if selected_option == "Search":
 if 'show_digitize' not in st.session_state:
     st.session_state['show_digitize'] = True
 
+# Sidebar checkbox to show or hide the "DIGITIZE" section
 show_digitize = st.sidebar.checkbox("NyAI Translate", value=st.session_state['show_digitize'])
 st.session_state['show_digitize'] = show_digitize
 
+# Show the "DIGITIZE" option if "Land" is selected and checkbox is checked
 if st.session_state['digitize_option'] and st.session_state['show_digitize']:
     st.sidebar.header("DIGITIZE")
     
@@ -255,52 +291,140 @@ if st.session_state['digitize_option'] and st.session_state['show_digitize']:
             """)
 
 
+# Main "Compare" Section
 if selected_option == "Compare":
     st.title("Compare")
 
-    time_value = st.slider("Time (in years)", 0.0, 7.0, 2.61)
-    expenditure_value = st.slider("Expenditure (₹ in Lakhs)", 0.0, 10.0, 6.755)
+    # Call Gemini API to get synthetic data for time
+    if st.session_state['type_of_litigation'] == "Criminal" and st.session_state['court'] == "High Court" and st.session_state['nature_of_case'] == "Defamation":
+        chat_session = model.start_chat(history=[])
+        synthetic_time_query = "How long (in years) will it take for a Criminal Defamation Litigation in the Delhi High Court? Print only one number, no text."
+        time_value = get_answer_from_model(chat_session, synthetic_time_query)
+        time_value = float(time_value)  # Assuming the model returns a valid number
 
-    col1, col2 = st.columns(2)
+        st.write(f"Estimated Time (in years): {time_value}")
+    else:
+        # Fallback to slider if conditions are not met
+        time_value = st.slider("Time (in years)", 0.0, 7.0, 2.5)
 
-    with col1:
-        st.header("Similar Cases Resolved by ADR")
-        
-        if st.button("Mumbai Mediation Centre - Rajesh Kumar - Daily Times - News Media - Settled"):
-            st.write("""
-            **Case ID**: D7A9P3  
-            **Location**: Mumbai  
-            **Mediation Centre**: Mumbai Mediation Centre  
-            **Parties Involved**: Rajesh Kumar vs Daily Times (News Media)  
-            **Sessions**: 3  
-            **Duration**: 45 days  
-            **Settlement**: ₹5,00,000  
-            **Status**: Settled
-            """)
+    print(time_value)
 
-        # Second button for another similar case
-        if st.button("Delhi High Court Mediation - Anjali Verma - Kunal Bhardwaj - Private Person - Settled"):
-            st.write("""
-            **Case ID**: D4B8X1  
-            **Location**: Delhi  
-            **Mediation Centre**: Delhi High Court Mediation  
-            **Parties Involved**: Anjali Verma vs Kunal Bhardwaj (Private Person)  
-            **Sessions**: 5  
-            **Duration**: 60 days  
-            **Settlement**: Apology and ₹2,00,000  
-            **Status**: Settled
-            """)
+    # Call Gemini API to get synthetic data for expenditure
+    if st.session_state['type_of_litigation'] == "Criminal" and st.session_state['court'] == "High Court" and st.session_state['nature_of_case'] == "Defamation":
+        synthetic_expenditure_query = "How many lakhs (in rupees) will it take for a Criminal Defamation Litigation in the Delhi High Court? Print only one number between 1-10."
+        expenditure_value = get_answer_from_model(chat_session, synthetic_expenditure_query)
+        expenditure_value = float(expenditure_value)  # Assuming the model returns a valid number
 
-    with col2:
-        st.header("Related Judgements")
+        st.write(f"Estimated Expenditure (₹ in Lakhs): {expenditure_value}")
+    else:
+        # Fallback to slider if conditions are not met
+        expenditure_value = st.slider("Expenditure (₹ in Lakhs)", 0.0, 10.0, 6.755)
 
-        st.write("Click on Find to Chat with the below case(s)")
+    # Create two rows for "Similar Cases resolved by ADR" and "Related Judgements"
+
+    # First Row: Similar Cases Resolved by ADR
+    st.header("Similar Cases Resolved by ADR")
+    adr_columns = st.columns(4)
+
+    adr_cases = [
+        {
+            "title": "Mumbai Mediation Centre - Rajesh Kumar vs Daily Times",
+            "case_id": "D7A9P3",
+            "location": "Mumbai",
+            "mediation_centre": "Mumbai Mediation Centre",
+            "parties": "Rajesh Kumar vs Daily Times (News Media)",
+            "sessions": 3,
+            "duration": "45 days",
+            "settlement": "₹5,00,000",
+            "status": "Settled"
+        },
+        {
+            "title": "Delhi High Court Mediation - Anjali Verma vs Kunal Bhardwaj",
+            "case_id": "D4B8X1",
+            "location": "Delhi",
+            "mediation_centre": "Delhi High Court Mediation",
+            "parties": "Anjali Verma vs Kunal Bhardwaj (Private Person)",
+            "sessions": 5,
+            "duration": "60 days",
+            "settlement": "Apology and ₹2,00,000",
+            "status": "Settled"
+        },
+        {
+            "title": "Bangalore Mediation Centre - Aditi vs Sunil",
+            "case_id": "D5C3K8",
+            "location": "Bangalore",
+            "mediation_centre": "Bangalore Mediation Centre",
+            "parties": "Aditi vs Sunil (Private Person)",
+            "sessions": 4,
+            "duration": "30 days",
+            "settlement": "₹3,00,000",
+            "status": "Settled"
+        },
+        {
+            "title": "Chennai Mediation Centre - Ravi vs Priya",
+            "case_id": "D8F1A2",
+            "location": "Chennai",
+            "mediation_centre": "Chennai Mediation Centre",
+            "parties": "Ravi vs Priya (Private Person)",
+            "sessions": 2,
+            "duration": "15 days",
+            "settlement": "₹1,00,000",
+            "status": "Settled"
+        },
+    ]
+
+    for idx, column in enumerate(adr_columns):
+        with column:
+            with st.expander(adr_cases[idx]["title"]):
+                st.write(f""" 
+                **Case ID**: {adr_cases[idx]['case_id']}  
+                **Location**: {adr_cases[idx]['location']}  
+                **Mediation Centre**: {adr_cases[idx]['mediation_centre']}  
+                **Parties Involved**: {adr_cases[idx]['parties']}  
+                **Sessions**: {adr_cases[idx]['sessions']}  
+                **Duration**: {adr_cases[idx]['duration']}  
+                **Settlement**: {adr_cases[idx]['settlement']}  
+                **Status**: {adr_cases[idx]['status']}
+                """)
+
+    # Second Row: Related Judgements
+    st.header("Related Judgements")
+    judgment_columns = st.columns(4)
+
+    judgment_cases = [
+        {
+            "title": "How to Use eSCR",
+            "link": "https://www.youtube.com/watch?v=2OwmXTJ6Wl0",
+            "details": "You can learn how to use eSCR by watching this tutorial."
+        },
+        {
+            "title": "Gautam Gambhir vs Punjab Kesari",
+            "details": """**Judgment Date**: Adjourned  
+                        **Details**: Gautam Gambhir filed a defamation suit against the newspaper Punjab Kesari for allegedly publishing defamatory content against him. The publication had allegedly made statements affecting Gambhir's reputation, leading to the legal action."""
+        },
+        {
+            "title": "Subramanian Swamy vs Union of India",
+            "details": """**Judgment Date**: May 13, 2016  
+                        **Status**: The court upheld the constitutionality of criminal defamation under Sections 499 and 500 of the Indian Penal Code, stating it is not a violation of free speech."""
+        },
+        {
+            "title": "R. Rajagopal vs State of Tamil Nadu",
+            "details": """**Judgment Date**: October 7, 1994  
+                        **Status**: The court ruled that the right to privacy cannot prevent the publication of true statements about a public official, especially if based on public records."""
+        },
+    ]
+
+    for idx, column in enumerate(judgment_columns):
+        with column:
+            with st.expander(judgment_cases[idx]["title"], expanded=(idx==0)):
+                if idx == 0:
+                    st.markdown(f"<div style='background-color: brown; padding: 10px; border-radius: 5px;'><h5 style='color: white;'>{judgment_cases[idx]['title']}</h5></div>", unsafe_allow_html=True)
+                    st.write(judgment_cases[idx]["details"])
+                    st.markdown(f"<a href='{judgment_cases[idx]['link']}' style='background-color: white; color: brown; padding: 10px; border-radius: 5px; text-decoration: none;' target='_blank'>Watch Here</a>", unsafe_allow_html=True)
+                else:
+                    st.write(judgment_cases[idx]["details"])
 
 
-        if st.button("Gautam Gambhir vs Punjab Kesari & Ors - Judgement: 17 May, 2023 - Status: Adjourned, Pending"):
-            st.write("""
-        
-            """)
 
         # # Button to navigate to the "Find" section
         # if st.button("Chat with Case"):
@@ -324,62 +448,106 @@ language_codes = {
 
 if selected_option == "Find":
     st.title("Find Cases")
-    col1, col2 = st.columns(2)
-   
-    with col1:
-        st.header("Judgement Assist")
-        
-        # PDF upload
-        uploaded_file = st.file_uploader("Upload a PDF", type=["pdf"])
-        if uploaded_file is not None:
-            st.success("PDF uploaded successfully!")
-
-        # Search bar
-        search_query = st.text_input("Search 🔍", placeholder="Enter your search here...")
-        if search_query:
-            query = f"https://notebooklm.google.com/notebook/8663e50a-386e-4dcd-8bae-d2ba9c4cd3ad?pli=1"
-            webbrowser.open_new_tab(query)
     
-    with col2:
-        st.header("Courtroom Exchange")
+    # First Row: Precedents
+    st.header("Precedents")
+    
+    st.markdown("""
+    <div style="background-color: saddlebrown; padding: 10px; border-radius: 5px; color: white;">
+        <strong>With NyAI Assist</strong>
+    </div>
+    """, unsafe_allow_html=True)
 
-        uploaded_file = st.file_uploader("Upload a PDF or DOCX file", type=["pdf", "docx"])
+    # Expander for Gautam Gambhir vs Punjab Kesari
+    with st.expander("Gautam Gambhir vs Punjab Kesari", expanded=False):
+
+        if st.button("Open Link"):
+            js = "window.open('https://notebooklm.google.com/notebook/8663e50a-386e-4dcd-8bae-d2ba9c4cd3ad?pli=1', '_blank')"
+            st.components.v1.html(f"<script>{js}</script>")
+
+    # Light green box for ratio of the first case
+    st.markdown("""
+    <div style="background-color: tan; padding: 10px; border-radius: 5px;">
+        <strong>Ratio: 4:1</strong>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Expander for Kaushal Kishor vs State of Uttar Pradesh & Ors (first instance)
+    with st.expander("Kaushal Kishor vs State of Uttar Pradesh & Ors", expanded=False):
+        st.write("""
+        **Judgment Date**: 3rd January, 2023  
+        **Reference Answered**  
+        Majority Judgement – Justice V Ramasubramanian for Justices A Nazeer, B R Gavai, A S Bopanna  
+        Concurring Judgement – Justice B V Nagarathna  
+        **Question Formulated**: 1. Whether the Court can impose restrictions on the right to freedom of speech and expression beyond the present restrictions provided under Article 19(2) of the Constitution?  
+        **Court’s Opinion**: The Court held that the grounds lined up in Article 19(2) of the Constitution for restricting the right to free speech, under the guise of invoking other Fundamental Rights is taking a competing climb against each other, additional restrictions not found in Article 19(2) cannot be imposed on the exercise of right conferred by Article 19(1)(a) of the Constitution.
+        """)
+
+    # Light green box for ratio of the second case
+    st.markdown("""
+    <div style="background-color: tan; padding: 10px; border-radius: 5px;">
+        <strong>Unanimous. Referred to Larger Bench</strong>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Expander for Kaushal Kishor vs State of Uttar Pradesh & Ors (second instance)
+    with st.expander("Kaushal Kishor vs State of Uttar Pradesh & Ors", expanded=False):
         
-        if uploaded_file is not None:
-            if uploaded_file.name.endswith('.pdf'):
-                document_text = extract_text_from_pdf(BytesIO(uploaded_file.read()))
-            elif uploaded_file.name.endswith('.docx'):
-                document_text = extract_text_from_word(BytesIO(uploaded_file.read()))
-            else:
-                st.error("Unsupported file format. Please upload a PDF or DOCX file.")
-                document_text = ""
+        
+        st.write("""
+        **Judgment Date**: 23rd November 2022  
+        **Ratio**: Unanimous Verdict  
+        **Judgment**: Justice V Ramasubramanian  
+        Concurring Judgement – Justice B V Nagarathna (Concurring)  
+        **Question Formulated**: Can a fundamental right under Article 19, i.e., the freedom of speech and expression, or Article 21, i.e., the right to life and personal liberty, be enforced against anyone other than the ‘State’ or its instrumentalities?  
+        **Court’s Opinion**: “A fundamental right under Article 19/21 can be enforced even against persons other than the State or its instrumentalities.”
+        """)
 
-            if document_text:
-                st.success("Document uploaded and text extracted successfully. You can now ask questions.")
-                chat_session = initialize_chat_with_document_text(document_text)
+    # Second Row: Existing Functionality from the Original Second Column
+    st.header("Courtroom Exchange")
 
-                user_input = st.text_input("Enter your question:", "")
-                if user_input:
-                    answer = get_answer_from_model(chat_session, "(Don't make any text bold):" + user_input)
-                    
-                    target_language = st.selectbox(
-                        "Translate answer to:",
-                        options=['English', 'Hindi', 'Kannada', 'Tamil', 'Malayalam', 'Telugu', 'Gujarati', 'Bangla', 'Assamese', 'Khasi', 'Bhojpuri', 'Tulu']
-                    )
-                    
-                    if target_language != 'english':  # Assuming 'english' is the default
-                        translated_answer = translate_answer(answer, target_language)
-                        st.write(f"Response in {target_language}: {translated_answer}")
-                        if st.button("Read Response Aloud"):
-                            lang_code = language_codes.get(target_language, 'en')  # Default to 'en' if language not found
-                            audio_fp = text_to_speech_gtts(translated_answer, lang=lang_code)
-                            st.audio(audio_fp, format='audio/mp3')
-                    else:
-                        st.write(f"Response: {answer}")
-                        if st.button("Read Response Aloud"):
-                            audio_fp = text_to_speech_gtts(answer)
-                            st.audio(audio_fp, format='audio/mp3')
+    # PDF upload for Courtroom Exchange
+    uploaded_file = st.file_uploader("Upload a PDF or DOCX file", type=["pdf", "docx"])
+    
+    if uploaded_file is not None:
+        if uploaded_file.name.endswith('.pdf'):
+            document_text = extract_text_from_pdf(BytesIO(uploaded_file.read()))
+        elif uploaded_file.name.endswith('.docx'):
+            document_text = extract_text_from_word(BytesIO(uploaded_file.read()))
+        else:
+            st.error("Unsupported file format. Please upload a PDF or DOCX file.")
+            document_text = ""
 
+        if document_text:
+            st.success("Document uploaded and text extracted successfully. You can now ask questions.")
+            chat_session = initialize_chat_with_document_text(document_text)
+
+            user_input = st.text_input("Enter your question:", "")
+            if user_input:
+                answer = get_answer_from_model(chat_session, "(Don't make any text bold):" + user_input)
+
+                target_language = st.selectbox(
+                    "Translate answer to:",
+                    options=['English', 'Hindi', 'Kannada', 'Tamil', 'Malayalam', 'Telugu', 'Gujarati', 'Bangla', 'Assamese', 'Khasi', 'Bhojpuri', 'Tulu']
+                )
+
+                if target_language != 'english':  # Assuming 'english' is the default
+                    translated_answer = translate_answer(answer, target_language)
+                    st.write(f"Response in {target_language}: {translated_answer}")
+                    if st.button("Read Response Aloud"):
+                        lang_code = language_codes.get(target_language, 'en')  # Default to 'en' if language not found
+                        audio_fp = text_to_speech_gtts(translated_answer, lang=lang_code)
+                        st.audio(audio_fp, format='audio/mp3')
+                else:
+                    st.write(f"Response: {answer}")
+                    if st.button("Read Response Aloud"):
+                        audio_fp = text_to_speech_gtts(answer)
+                        st.audio(audio_fp, format='audio/mp3')
+
+
+#### Main "Ask" Section
+
+# Initialize chat session
 def initialize_chat():
     chat_session = model.start_chat(history=[])
     return chat_session 
