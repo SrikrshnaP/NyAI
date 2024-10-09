@@ -1,6 +1,5 @@
 import streamlit as st
 import webbrowser
-from openai import OpenAI
 import PyPDF2
 from io import BytesIO
 import google.generativeai as genai
